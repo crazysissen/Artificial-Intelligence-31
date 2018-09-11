@@ -9,7 +9,7 @@ class GeneManager
 {
     const int
         PLAYERCOUNT = 50, // Even, please
-        GAMECOUNT = 5000;
+        GAMECOUNT = 500;
 
     const bool
         CLICKTHROUGHGENERATIONS = false;
@@ -35,7 +35,7 @@ class GeneManager
 
         for (int i = 0; i < PLAYERCOUNT; ++i)
         {
-            players.Add(new GeneticAI(true, currentGeneration, currentIndex++));
+            players.Add(GetPlayer());
         }
 
         while (run)
@@ -88,11 +88,11 @@ class GeneManager
         
         if (firstGeneration)
         {
-            bestAI = new GeneticAI(players[0], false, players[0].Generation, players[0].Index);
+            bestAI = GetClone(players[0]);
         }
         else if (players[0].Wins > bestAI.Wins)
         {
-            bestAI = new GeneticAI(players[0], false, players[0].Generation, players[0].Index);
+            bestAI = GetClone(players[0]);
         }
 
         Console.Clear();
@@ -142,7 +142,7 @@ class GeneManager
             //    continue;
             //}
 
-            players.Add(new GeneticAI(true, generation, currentIndex++));
+            players.Add(GetPlayer());
         }
     }
 
@@ -150,30 +150,38 @@ class GeneManager
     {
         return new EnhancedAI();
     }
+
+    public GeneticAI GetPlayer()
+    {
+        return new EnhancedConverted(true, currentGeneration, currentIndex++);
+    }
+
+    public GeneticAI GetClone(GeneticAI template)
+    {
+        return new EnhancedConverted(template, false, currentGeneration, currentIndex++);
+    }
 }
 
-class GeneticAI : Player
+abstract class GeneticAI : Player
 {
     public int Wins { get; set; }
-    public int Generation { get; private set; }
-    public int Index { get; private set; }
+    public int Generation { get; protected set; }
+    public int Index { get; protected set; }
 
     // Genetic modifiers
-    public Dictionary<string, object> Settings { get; set; } = new Dictionary<string, object>
+    public abstract Dictionary<string, object> Settings { get; set; }
+
+    protected List<string> settingTags;
+
+    public void RandomizeValues(double exponent)
     {
-        { "functionC", 0.0 },
-        { "functionA", 0.0 },
-        { "functionM", 0 },
-        { "turnOverRound", 0 },
-        { "turnOverMinimum", 0 },
-        { "firstKnockMinimum", 0 },
-        { "firstKnock", false }
-    };
+        for (int i = 0; i < settingTags.Count; i++)
+        {
+            Settings[settingTags[i]] = Settings[settingTags[i]].ChangeRandomly(exponent);
+        }
+    }
 
-    List<string> settingTags;
-
-    List<Card> scrappedCards;
-    List<Card> knownOpponentCards;
+    public abstract void NewValues();
 
     public GeneticAI(GeneticAI clone, bool clearValue, int generation, int index, bool randomize = false, double exponent = 1)
     {
@@ -216,85 +224,6 @@ class GeneticAI : Player
 
         if (randomize)
             RandomizeValues(exponent);
-    }
-
-    public void NewValues()
-    {
-        Settings = new Dictionary<string, object>
-        {
-            { "functionC", 13.0 },
-            { "functionA", 2.0 / 9.0 },
-            { "functionM", 4 },
-            { "turnOverRound", 12 },
-            { "turnOverMinimum", 22 },
-            { "firstKnockMinimum", 15 },
-            { "firstKnock", true }
-        };
-    }
-
-    public void RandomizeValues(double exponent)
-    {
-        for (int i = 0; i < settingTags.Count; i++)
-        {
-            Settings[settingTags[i]] = Settings[settingTags[i]].ChangeRandomly(exponent);
-        }
-    }
-
-    // Returnerar true om spelaren skall knacka, annars false
-    public override bool Knacka(int round)
-    {
-        if (round == 0)
-        {
-            if ((bool)Settings["firstTurnKnock"] && Hand.HandValue() >= (int)Settings["firstKnockMinimum"])
-            {
-                return true;
-            }
-
-            return false;
-        }
-
-        if (round == 1)
-            return false;
-
-        int currentMinimumKnock = 0;
-
-        if (round < 12)
-        {
-            currentMinimumKnock = (int)((double)Settings["functionC"] * Math.Pow(round, (double)Settings["functionA"])) + (int)Settings["functionM"];
-        }
-
-        if (round >= 12)
-        {
-            currentMinimumKnock = (int)Settings["turnOverMinimum"];
-        }
-
-        if (Hand.HandValue() >= currentMinimumKnock)
-        {
-            return true;
-        }
-
-        return false;
-    }
-
-    // Returnerar true om spelaren skall ta upp korten på skräphögen (card), annars false för att dra kort från leken.
-    public override bool TaUppKort(Card card)
-    {
-        Card discardCard = EMethods.DiscardCardAdditional(Hand, card);
-
-        if (discardCard == card)
-        {
-            return false;
-        }
-
-        return true;
-    }
-
-    // Returnerar det kort som skall kastas av de fyra som finns på handen
-    public override Card KastaKort()
-    {
-        Card discardCard = EMethods.DiscardCard(Hand);
-
-        return discardCard;
     }
 
     // Anropas när ett spel tar slut. Wongames++ får ej ändras!

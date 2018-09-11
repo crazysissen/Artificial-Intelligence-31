@@ -44,6 +44,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AIs\GeneManager.cs" />
+    <Compile Include="AIs\GeneticAIs\EnhancedConverted.cs" />
     <Compile Include="AIs\StefanAI.cs" />
     <Compile Include="CodeFile1.cs" />
     <Compile Include="AIs\EnhancedAI.cs" />
